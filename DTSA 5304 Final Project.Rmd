@@ -1,0 +1,56 @@
+---
+title: "DTSA 5304 Final Project"
+author: "Patrick Rekieta"
+date: "2023-08-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(echarts4r)
+raw_data <- read.csv("https://data.cdc.gov/api/views/w9j2-ggv5/rows.csv?accessType=DOWNLOAD", check.names = FALSE)
+# raw_data$year <- as.character(raw_data$year)
+all_race_both_sex <- raw_data[raw_data$Race=="All Races" & raw_data$Sex=="Both Sexes",]
+all_race_male <- raw_data[raw_data$Race=="All Races" & raw_data$Sex=="Male",]
+all_race_female <- raw_data[raw_data$Race=="All Races" & raw_data$Sex=="Female",]
+all_race_both_split <- full_join(all_race_male,all_race_female, by = "Year", suffix = c(".male",".female"))
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+all_race_both_sex |>
+  mutate(Year = as.factor(Year)) |>
+e_charts(Year) |>
+  e_scatter(`Average Life Expectancy (Years)`) |>
+  e_y_axis(`Average Life Expectancy (Years)`)
+```
+```{r}
+all_race_both_split |>
+   mutate(Year = as.factor(Year)) |>
+  e_chart(Year) |>
+  e_line(`Average Life Expectancy (Years).male`) |>
+  e_line(`Average Life Expectancy (Years).female`)
+```
+```{r}
+# raw_data |>
+#   mutate(Year = as.factor(Year)) |>
+#   mutate(Race = as.factor(Race)) |>
+#   e_chart(Year) |>
+#   e_line(Race)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+test <- pivot_wider(raw_data, values_from = "Average Life Expectancy (Years)", names_from = "Race")
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
