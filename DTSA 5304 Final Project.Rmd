@@ -1,56 +1,210 @@
 ---
-title: "DTSA 5304 Final Project"
-author: "Patrick Rekieta"
-date: "2023-08-21"
+title: "<b> DTSA 5304 Final Project </b>"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-library(tidyverse)
-library(echarts4r)
+```{=html}
+<style>
+.main-container {
+background-color:#FDFDEA;
+max-width: 1500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#header {
+<!-- position: sticky; -->
+<!-- top:0; -->
+<!-- opacity:1; -->
+<!-- z-index: 1; -->
+<!-- text-align:center; -->
+}
+.title {
+text-align:center;
+}
+
+<!-- #hljs{ -->
+<!-- max-width: 1600px; -->
+<!--   margin-left: auto; -->
+<!--   margin-right: auto; -->
+<!-- } -->
+
+</style>
+```
+```{r setup, include = FALSE}
+suppressWarnings(library(tidyverse, quietly = TRUE, warn.conflicts = FALSE))
+suppressWarnings(library(echarts4r, quietly = TRUE, warn.conflicts = FALSE))
 raw_data <- read.csv("https://data.cdc.gov/api/views/w9j2-ggv5/rows.csv?accessType=DOWNLOAD", check.names = FALSE)
-# raw_data$year <- as.character(raw_data$year)
+raw_data <- raw_data[raw_data$Year!="2018",]
+full_data <- raw_data
+model <- lm(`Age-adjusted Death Rate`~`Average Life Expectancy (Years)`, data = full_data)
+full_data$prediction <- predict(model)
+rsquared <- summary(model)$r.squared
 all_race_both_sex <- raw_data[raw_data$Race=="All Races" & raw_data$Sex=="Both Sexes",]
-all_race_male <- raw_data[raw_data$Race=="All Races" & raw_data$Sex=="Male",]
-all_race_female <- raw_data[raw_data$Race=="All Races" & raw_data$Sex=="Female",]
-all_race_both_split <- full_join(all_race_male,all_race_female, by = "Year", suffix = c(".male",".female"))
+black_male <- raw_data[raw_data$Race=="Black" & raw_data$Sex=="Male",]
+black_female <- raw_data[raw_data$Race=="Black" & raw_data$Sex=="Female",]
+black_joint <- full_join(black_male, black_female, by = "Year", suffix = c(".black_male",".black_female"))
+white_male <- raw_data[raw_data$Race=="White" & raw_data$Sex=="Male",]
+white_female <- raw_data[raw_data$Race=="White" & raw_data$Sex=="Female",]
+white_joint <- full_join(white_male, white_female, by = "Year", suffix = c(".white_male",".white_female"))
+all_joint <- full_join(black_joint, white_joint, by = "Year")
+all_joint <- full_join(all_joint, all_race_both_sex, by = "Year")
+colnames(all_race_both_sex)[5] <- "Age-adjusted Death Rate (deaths per 100,000)"
+colnames(full_data)[5] <- "Age-adjusted Death Rate (deaths per 100,000)"
 ```
 
-## R Markdown
+# <b>Recap</b>
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+|      The data I will be using for this projects was found through data.gov. The data set can be accessed at <https://catalog.data.gov/dataset/nchs-death-rates-and-life-expectancy-at-birth>. This is a fairly straightforward data set exploring both the life expectancy and the death rate for every year from 1900 to 2017. This data also includes additional subsets for Male vs Female as well as White vs Black. To analyze my data I loaded everything in R for analysis and cleanup. To assist with the data wrangling, I used the tidyverse package (<https://www.tidyverse.org/>). For visualization, I wanted my visual to be interactive which requires a JavaScript visualization library. Therefore, the standard ggplot charts are not possible for this task. To accomplish this, I used the echarts4r package (<https://echarts4r.john-coene.com/>). This package is an implementation of the opensource visualization project from the Apache Software Foundation called eCharts(<https://echarts.apache.org/en/index.html>).
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+<br>
+
+Brief view of the raw data:
+
+```{r, echo = FALSE}
+options(width = 300)
+head(raw_data, 5)
+```
+
+<br>
+
+|       I chose this data as it's a relatively small data-set that still includes room for exploration. This data should provide enough information to create some interesting charts. My goal going into this project was to create the visualizations that would accomplish different tasks. The first visual is an exploratory visualization of the basic information included in data. To accomplish this I planned to create a simple boxplot of both the life expectancy data and the death rate. The next goal was to better understand how the subsets in our data compare with the overall average for all categories. This can be done by creating a line chart with lines for each category. This will give us a much better understanding of the data as well as make it visually easy to understand the differences between categories. I chose a line chart because this data is set up as a time series so changes over time is what most people will want to see. The last chart is more serious analysis where we compare the all Life Expectancy Data compared to the Death Rate data. Since we are no longer operating with a time series, it make sense to visualize this as a scatter plot to indicate our x and y values. Additionally, with just the scatter plot, we should get some indication of the correlation between these two variables but it might be useful to include a linear regression line to really solidify the connection. Additionally, it is helpful to include the $R^2$ value to give some objective information about the regression line.
+
+<br>
+
+|       Additionally, there are already plenty of visualizations available online for discussing life expectancy values. The key webiste that I used as a reference was <https://ourworldindata.org/life-expectancy>. The majority of graphs that I view on the site where incredibly detailed and well put together. The interesting thing to me was that some graphs were interactive and others were not. This led to disappointment as I would expect all graphs to be interactive if you are going to include interactivity at all. I also found many of the graphs to be overwhelming with the information being displayed. More data can be good if it adds to my understanding of the graph. This was especially true for the graphs that contained additional text information. It made it difficult to comprehend the intention behind the graph was data was not immediately clear upon first view. In my opinion, if a chart takes more than a few seconds to understand, it is not a great chart.
+
+<br>
+
+Note: All code to generate the visualizations is supplied to better understand what was done to create the charts.
+
+<br>
+
+## Evaluation Approach
+
+|       To generate feedback and discussion for the preliminary charts, I recruited a mix of colleagues and friends to provide input on what they felt was missing. The charts were shown on a computer so that people would also be able to see the interactivity. Charts were evaluated on four criteria: What is missing from the chart?; What do you not like about the chart?; How easy is it to understand?; Can you explain to me what the chart is showing?. Using these criteria, I was able to get a general idea of what improvements should be made. Typically, reviewing charts is a relatively subjective experience as most people are not trained on the best practices for visualization. As such, I had to make decisions to ignore some input in order to create what I personally believe would be the best example of the visualization.
+
+<br>
+
+# <b>Chart 1</b>
 
 ```{r}
-all_race_both_sex |>
+life_box <- all_race_both_sex |>
+  e_chart() |>
+  e_boxplot(`Average Life Expectancy (Years)`, outliers = TRUE, name = "Average Life Expectancy (Years)") |>
+  e_tooltip()|>
+  e_title(text = "Average Life Expectancy (Years) for the United States from 1900 to 2017", left = "center") |>
+  e_grid(top = '20%')
+death_box <- all_race_both_sex |>
+  e_chart() |>
+  e_boxplot(`Age-adjusted Death Rate (deaths per 100,000)`, outliers = TRUE, name = "Age-adjusted Death Rate (deaths per 100,000)")|>
+  e_tooltip() |>
+  e_title(text = "Age-adjusted Death Rate (deaths per 100,000) for the United States \n from 1900 to 2017", subtext = "Rates for census years are based on populations enumerated in the corresponding censuses.\n Rates for noncensus years between 2000 and 2010 are revised using updated intercensal population estimates", left = "center") |>
+  e_grid(top = '20%')
+e_arrange(life_box, death_box,cols = 2, rows = 1,  width = "lg")
+```
+
+<br>
+
+|       This chart is intended as an exploratory analysis of our data. For a data-set like this one, this is not typically something that would be published but it provides us a great overview of our data. By using a boxplot, I am able to supply the key summary statistics that someone would want to know in order to get a snapshot of the data. Additionally, since we have two different series of data with very different ranges of data, I felt it was necessary to split the visualization into two separate plots. I left the default color as blue since this is an industry standard and still provides a clear view of what is being displayed. Additionally, I added subtext to the titles to make it more clear where the data was coming from.
+
+<br>
+
+|       I personally believe that interactiviy is crucial for any visualization that is being published online. There are so many possibilities once you add in interactivity that I felt that I had no choice in including it. When you hover the chart, I felt it was important to include the key summary statistics that someone would want to better understand the boxplot. This reduces time spend trying to calculate that numbers based on the axes.
+
+<br>
+
+|       From the people I interviewed for this graph there were some important changes that needed to be made. First, there were no titles at all and people found that off-putting. I added in titles to hopefully make the visuals more clear upon first look. Next, there were no units supplied for the Age-adjusted Death Rates so I made sure to add the units in parenthesis both for the axis label and the title. I also found that people were confused by the definition of age-adjusted rate and I felt some additional context was needed. To solve this, I added some subtext to the title to provide additional details. The actual definition used by the CDC on how they create their age-adjusted data is not clear and is not easily available. In the future, I would want to add the CDC definition for age-adjusted deaths to allow for better understanding of the data.
+
+<br>
+
+# <b>Chart 2</b>
+
+```{r}
+all_joint |>
   mutate(Year = as.factor(Year)) |>
-e_charts(Year) |>
-  e_scatter(`Average Life Expectancy (Years)`) |>
-  e_y_axis(`Average Life Expectancy (Years)`)
-```
-```{r}
-all_race_both_split |>
-   mutate(Year = as.factor(Year)) |>
   e_chart(Year) |>
-  e_line(`Average Life Expectancy (Years).male`) |>
-  e_line(`Average Life Expectancy (Years).female`)
+  e_line(`Average Life Expectancy (Years)`, name = "All Category") |>
+  e_line(`Average Life Expectancy (Years).black_male`, name = "Black Male") |>
+  e_line(`Average Life Expectancy (Years).black_female`, name = "Black Female")|>
+  e_line(`Average Life Expectancy (Years).white_male`, name = "White Male") |>
+  e_line(`Average Life Expectancy (Years).white_female`, name = "White Female") |>
+  e_y_axis(max = 90, min = 20, name = "Average Life Expectancy (Years)", nameLocation = "middle", nameTextStyle = list(fontSize = 16, padding = c(0, 0, 15, 0))) |>
+  e_legend(right = 0, bottom = "50%", orient = "vertical") |>
+  e_tooltip(trigger = "axis") |> 
+  e_datazoom() |>
+  e_title(text = "Average Life Expectancy in the United States Across Mutliple Categories (1900 to 2017)", left = "center")
 ```
+
+<br>
+
+|       This chart gives the greatest view of our data. Because this data is able to be subset into different categories, I felt it would be beneficial to view all categories at the same time in order to quickly analyze the data. I wanted to explore the four separate categories while including the "All Category" so that there would be a reference line. I chose a line chart for this visualization because we are working with time series data and this will give us the best understanding. The y axis was also given a label so that the visualization was clear. I chose not to add a label for the x axis because I believed the years were easy to understand. This also gave me the ability to add the zoom bar at the bottom. I wanted the ability to zoom because we are working with data over a 100+ year time frame. To make better use of space, I moved the legend to the right side of the chart to give lots of room for the title at the top. Due to the nature of multiple lines, the tooltip triggers based on the axis value. This means we are able to view every tooltip at this same time based on what point we are at on the x axis. Additionally, removing a line using the legend will also remove it's tooltip. The tooltip shows the y axis value to make it easy to quickly determine what the underlying values are without having to estimate using the axes. Some additional text and space formatting was completed to finalize the look of the visual.
+
+<br>
+
+|       In this chart, we also have interactivity. I felt that it was important to be able to zoom and move around the chart to allow ease of access. Additionally, being able to filter the lines allows someone to only focus on the lines that they care about. The benefit of using the echarts4r packages is that I could link the data in different charts should I wish to. Unfortunately, my charts do not have many overlapping elements to use this feature but it is nice to know that I would be able to filter across multiple charts should I choose to do so.
+
+<br>
+
+|       Based on feedback from the people I recruited, I had to make a few changes. First change was the addition of a title. I left the title blank on the preliminary charts as they were not a primary concern to the understanding of the data at that time. Another addition was the inclusion of the ability to zoom on my data. People felt that the lines gave a great overview of what the data contained but most people wanted the ability to get into details. People also felt that it was cumbersome to hover over each line individually to see a tooltip so I changed the tooltips to be based on the axis value. The last change I made was to the y axis limits. Originally, the y axis range went from 0 to 100. People did not find this useful as it made the lines look more squished. By changing the limits to 20 and 90, we are better able to see the separation between the lines. This makes it less necessary to zoom into the data to get detail.
+
+<br>
+
+Side Note: If you are curious about the giant dip in 1918, this can be attributed to the Influenza Pandemic of 1918 that is sometimes referred to as the "Spanish Flu" Here is some reading if you are interest.
+
+-   <https://en.wikipedia.org/wiki/Spanish_flu>
+
+-   <https://www.archives.gov/exhibits/influenza-epidemic/>
+
+-   <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2740912/#:~:text=Changes%20in%20life%20expectancy&text=The%201918%20influenza%20epidemic%20affected,years%20from%201917%20to%201918.>
+
+<br>
+
+# <b>Chart 3</b>
+
 ```{r}
-# raw_data |>
-#   mutate(Year = as.factor(Year)) |>
-#   mutate(Race = as.factor(Race)) |>
-#   e_chart(Year) |>
-#   e_line(Race)
+full_data |>
+  e_chart(x = `Average Life Expectancy (Years)`) |>
+  e_scatter(`Age-adjusted Death Rate (deaths per 100,000)`, legend = FALSE) |>
+  e_line(prediction, symbol = "none", name = "Linear Model") |>
+  e_tooltip(formatter = htmlwidgets::JS("
+      function(params){
+        return('Average Life Expectancy: ' + params.value[0] + '<br />Age-adjusted Death Rate: ' + params.value[1])
+      }
+    ")) |>
+  e_y_axis(name = "Age-adjusted Death Rate (deaths per 100,000)", nameLocation = "middle", nameTextStyle = list(fontSize = 16, padding = c(0, 0, 30, 0))) |>
+  e_x_axis(max = 90, min = 20, name = "Average Life Expectancy (Years)", nameLocation = "middle", nameTextStyle = list(fontSize = 16, padding = c(15, 0, 0, 0))) |>
+  e_toolbox_feature("dataZoom", title = list(zoom = "zoom", back = "back")) |>
+  e_text_g(right=60, top = 60, style = list(text = paste("R^2 = ", round(rsquared,4)))) |>
+  e_legend(right = 0, bottom = "50%", orient = "vertical") |>
+ e_title(text = "Age-adjusted Death Rate (deaths per 100,000) by Average Life Expectancy (Years) for the United States \n in All Categories with Linear Regression Model", left = "center")
+
 ```
 
-## Including Plots
+<br>
 
-You can also embed plots, for example:
+|       For this chart I began by deciding upon a scatter plot. This is because we are examining the differences between two series to see how they relate. Therefore, a scatter plot will gives us the best representation of our x,y data. I decided that life expectancy should be our x axis because this is the primary data that we have been working with so far. It is the most relevant data to understanding all the visualizations we have looked at so far. By default, the tooltip did not show both x and y values so I had to write some JavaScript to get it to properly display as I wanted. Additionally, due to the sheer amount of data, I wanted the ability for people to zoom so I added a toolbox in the top right to give people better interactivity with the visualization. Because we are looking at the correlation between to series to see how they relate, I felt that it was essential to add a regression line. This also meant that I wanted the ability to remove the line should people find it disruptive to viewing the data. Some additional cleaning was done to make the graph look the way I wanted. I left the default colors because I believed the contrast between the green and blue should be easy to understand and would not cause accessibility issues.
 
-```{r pressure, echo=FALSE}
-test <- pivot_wider(raw_data, values_from = "Average Life Expectancy (Years)", names_from = "Race")
-```
+<br>
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+|       The biggest issue I had with this chart was displaying information for the regression line. I was unable to get the line to trigger a tooltip so I was forced to add the $R^2$ value as text on the graph. If I was to redo this chart, I would spend additional time trying to get some of the linear model statistics to show up as a tooltip for the line. I put the $R^2$ value in the top right so the information was visible but does not interfere with viewing the chart.
+
+<br>
+
+|       Based on feedback from the people I reviewed, there were three big additions that needed to be made. First, the chart was missing a title when I first displayed it for others. This was a relatively easy fix. Additionally, my y axis was missing the units so I added "(deaths per 100,000)" to the y axis label to make the data more clear. The last wish was for the addition of the $R^2$ value. As mentioned above, I had difficulty getting the value to display as I wanted to I had to make the unfortunate choice of placing it as text in the corner. I think this implementation is fine but is far from perfect. Some people preferred the $R^2$ value not be on the graph at all. An additional element that people liked was the ability to zoom. With so many data points, if someone wants more detailed information, they are able to see that granularity but it is not necessary to understanding the chart.
+
+<br>
+
+# <b>Conclusions</b>
+
+<br>
+
+|       After feedback from my peers, the biggest conclusion I drew is that people don't like charts when they don't have titles. I personally don't find titles to be very helpful because I believe a good chart should be self explanatory. However, adding a title gives you a space to include additional details that might not make sense to add elsewhere in the chart. Most people also preferred that the charts be interactive. At this point in time, most people who are viewing a visual on a computer begin with the expectation that moving your mouse over the visual will do something. Therefore, I found it vital to include interactivity in every chart. This is inherently why I chose echarts4r rather than using ggplot as my underlying visualization tool. There are other tools in R that let you make interactive visuals such as plotly but after testing out different packages, I felt that echarts4r looked the most visually interesting while still providing the ability to make minute adjustments. Additionally, the three charts that were created give, what I believe, the greatest overview of the data. I did not want a lot of overlap between the charts as this would be wasted effort and would likely not contribute to someones understanding of the underlying data.
+
+<br>
+
+|       If I were to improve these charts moving forward, the first thing I would do is spend more time working on them. Additionally, more peer review would be helpful as I create multiple versions of each chart. In terms of specifics, I would want to make the $R^2$ value actually look pleasing or find some way to incorporate the data as a tooltip. I would also give more thought to the color choices in the future. While there is not much wrong with the colors that were chosen, I believe additional detail and changes could be made to ensure that the charts are highly accessible to anyone. For example, Chart 2 uses a rainbow color set for each line but this causes two much overlap in the colors between red and orange. In the future I would manually choose the colors so they are more distinct from each other. While there is always more work and input that could be done, sometimes it is more important to release the finished report so that the most people have access to the information. Improvements can always be done in the future. I think the most important thing I have taken from peer feedback is the reality that visuals can be subjective. What I believe might look best on a chart is not always the same for others. Additionally, sometimes you receive feedback that you believe will not add anything useful. It's alright to ignore people's input but it is still very important that you get that feedback in the first place.
+
+<br>
+
+#### Thank you for taking the time to read my report. I hope you enjoyed it!
